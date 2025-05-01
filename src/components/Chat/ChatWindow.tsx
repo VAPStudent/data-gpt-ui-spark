@@ -7,22 +7,28 @@ import ChatMessage from "./ChatMessage";
 import FileUpload from "../Upload/FileUpload";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import EmptyState from "../UI/EmptyState";
+import { queryService, Citation } from "@/services/queryService";
+import { useToast } from "@/hooks/use-toast";
 
 type Message = {
   id: string;
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
+  citations?: Citation[];
+  isPending?: boolean;
 };
 
 const ChatWindow: React.FC = () => {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { activeWorkspace } = useWorkspace();
+  const { toast } = useToast();
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -31,29 +37,71 @@ const ChatWindow: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!query.trim()) return;
+  const handleSendMessage = async () => {
+    if (!query.trim() || isLoading || !activeWorkspace) return;
 
-    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       content: query,
       role: "user",
       timestamp: new Date(),
     };
-    setMessages((prev) => [...prev, userMessage]);
-    setQuery("");
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: `This is a simulated response to: "${query}"`,
-        role: "assistant",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+    // Add placeholder for AI response
+    const aiMessagePlaceholder: Message = {
+      id: (Date.now() + 1).toString(),
+      content: "Thinking...",
+      role: "assistant",
+      timestamp: new Date(),
+      isPending: true,
+    };
+
+    setMessages((prev) => [...prev, userMessage, aiMessagePlaceholder]);
+    setQuery("");
+    setIsLoading(true);
+
+    try {
+      const response = await queryService.sendQuery(activeWorkspace.id, query);
+      
+      // Replace placeholder with actual response
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.id === aiMessagePlaceholder.id 
+            ? {
+                ...msg,
+                id: response.id || msg.id,
+                content: response.content,
+                citations: response.citations,
+                isPending: false,
+                timestamp: new Date(),
+              }
+            : msg
+        )
+      );
+    } catch (error) {
+      console.error("Query failed:", error);
+      
+      // Update placeholder to show error
+      setMessages((prev) => 
+        prev.map(msg => 
+          msg.id === aiMessagePlaceholder.id 
+            ? {
+                ...msg,
+                content: "Sorry, I couldn't process your query. Please try again.",
+                isPending: false,
+              }
+            : msg
+        )
+      );
+      
+      toast({
+        title: "Query failed",
+        description: "Failed to process your query",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -147,10 +195,11 @@ const ChatWindow: React.FC = () => {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about your documents..."
                   className="flex-1 min-h-[50px] max-h-[120px] resize-none bg-transparent border-none focus-visible:ring-0"
+                  disabled={isLoading}
                 />
                 <Button
                   className="h-auto self-end py-2 px-3 m-1 bg-datagpt-blue hover:bg-datagpt-blue/90"
-                  disabled={!query.trim()}
+                  disabled={!query.trim() || isLoading || !activeWorkspace}
                   onClick={handleSendMessage}
                 >
                   <Send className="h-4 w-4" />

@@ -5,6 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { X, FileText, Upload, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { documentService } from "@/services/documentService";
 
 type FileUploadProps = {
   onClose: () => void;
@@ -22,6 +24,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
+  const { activeWorkspace } = useWorkspace();
 
   // Handle file drop
   const handleDrop = useCallback(
@@ -34,7 +37,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
         handleFiles(e.dataTransfer.files);
       }
     },
-    []
+    [activeWorkspace]
   );
 
   // Handle file input change
@@ -47,6 +50,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
 
   // Process files
   const handleFiles = (files: FileList) => {
+    if (!activeWorkspace) {
+      toast({
+        title: "No workspace selected",
+        description: "Please select a workspace before uploading files",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newFiles = Array.from(files).filter(
       // Only accept PDFs
       (file) => file.type === "application/pdf"
@@ -72,38 +84,68 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
 
     setUploadedFiles((prev) => [...prev, ...filesToAdd]);
 
-    // Simulate upload progress
-    filesToAdd.forEach((file) => {
-      simulateFileUpload(file.id);
+    // Upload each file
+    filesToAdd.forEach((fileInfo) => {
+      const file = newFiles.find((f) => f.name === fileInfo.name);
+      if (file) {
+        uploadFile(fileInfo.id, file);
+      }
     });
   };
 
-  // Simulate file upload with progress
-  const simulateFileUpload = (fileId: string) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 10;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
+  // Actually upload file to API
+  const uploadFile = async (fileId: string, file: File) => {
+    if (!activeWorkspace) return;
+    
+    try {
+      // Update progress to show upload started
+      updateFileProgress(fileId, 10);
+      
+      // Upload to server
+      const response = await documentService.uploadDocument(activeWorkspace.id, file);
+      
+      // Update progress during "processing" stage
+      updateFileProgress(fileId, 50);
+      
+      // Poll for document status if needed
+      // For this example, we'll just simulate a success after a delay
+      setTimeout(() => {
         setUploadedFiles((prev) =>
-          prev.map((f) =>
+          prev.map((f) => 
             f.id === fileId ? { ...f, progress: 100, status: "complete" } : f
           )
         );
-
+        
         toast({
           title: "Upload complete",
-          description: "Your file has been uploaded successfully",
+          description: `${file.name} has been uploaded successfully`,
         });
-      } else {
-        setUploadedFiles((prev) =>
-          prev.map((f) =>
-            f.id === fileId ? { ...f, progress: Math.round(progress) } : f
-          )
-        );
-      }
-    }, 300);
+      }, 1500);
+      
+    } catch (error) {
+      console.error("File upload failed:", error);
+      
+      setUploadedFiles((prev) =>
+        prev.map((f) => 
+          f.id === fileId ? { ...f, progress: 0, status: "error" } : f
+        )
+      );
+      
+      toast({
+        title: "Upload failed",
+        description: `Failed to upload ${file.name}`,
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Helper to update file progress
+  const updateFileProgress = (fileId: string, progress: number) => {
+    setUploadedFiles((prev) =>
+      prev.map((f) => 
+        f.id === fileId ? { ...f, progress } : f
+      )
+    );
   };
 
   // Remove a file from the list
