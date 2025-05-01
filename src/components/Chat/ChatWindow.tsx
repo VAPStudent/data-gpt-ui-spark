@@ -27,8 +27,13 @@ const ChatWindow: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, activeWorkspaceId } = useWorkspace();
   const { toast } = useToast();
+  
+  // Reset messages when workspace changes
+  useEffect(() => {
+    setMessages([]);
+  }, [activeWorkspaceId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {

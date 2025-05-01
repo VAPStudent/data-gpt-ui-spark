@@ -20,6 +20,7 @@ type WorkspaceContextType = {
   setActiveWorkspace: (id: string) => void;
   createWorkspace: (name: string) => Promise<void>;
   refreshWorkspace: () => Promise<void>;
+  deleteWorkspace: (id: string) => Promise<void>;
   isLoading: boolean;
 };
 
@@ -92,6 +93,36 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const deleteWorkspace = async (id: string) => {
+    try {
+      setIsLoading(true);
+      await workspaceService.deleteWorkspace(id);
+      
+      // Remove workspace from state
+      setWorkspaces(prev => prev.filter(w => w.id !== id));
+      
+      // If deleted workspace was active, set a new active workspace
+      if (activeWorkspaceId === id) {
+        const firstWorkspace = workspaces.find(w => w.id !== id);
+        setActiveWorkspaceId(firstWorkspace ? firstWorkspace.id : null);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Workspace deleted successfully",
+      });
+    } catch (error) {
+      console.error("Failed to delete workspace:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete workspace",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const activeWorkspace = activeWorkspaceId
     ? workspaces.find((w) => w.id === activeWorkspaceId) || null
     : null;
@@ -137,6 +168,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setActiveWorkspace,
         createWorkspace,
         refreshWorkspace,
+        deleteWorkspace,
         isLoading,
       }}
     >
