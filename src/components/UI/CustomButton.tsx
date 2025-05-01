@@ -10,7 +10,7 @@ interface ButtonProps extends ShadcnButtonProps {
   rightIcon?: React.ReactNode;
 }
 
-const Button: React.FC<ButtonProps> = ({
+const CustomButton: React.FC<ButtonProps> = ({
   children,
   isLoading = false,
   leftIcon,
@@ -37,4 +37,4 @@ const Button: React.FC<ButtonProps> = ({
   );
 };
 
-export default Button;
+export default CustomButton;
