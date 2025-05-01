@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
   const { activeWorkspace } = useWorkspace();
+  const fileInputRef = useRef<HTMLInputElement>(null); // Add a ref for the file input
 
   // Handle file drop
   const handleDrop = useCallback(
@@ -46,6 +47,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
     if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
     }
+  };
+
+  // Trigger file input click when button is clicked
+  const handleSelectFiles = () => {
+    fileInputRef.current?.click();
   };
 
   // Process files
@@ -173,8 +179,8 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
 
       <div
         className={cn(
-          "file-drop-zone",
-          dragActive && "file-drop-zone-active"
+          "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer",
+          dragActive ? "border-datagpt-blue bg-datagpt-blue/5" : "border-gray-300",
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -186,6 +192,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
         onDrop={handleDrop}
       >
         <input
+          ref={fileInputRef}
           id="file-upload"
           type="file"
           multiple
@@ -204,12 +211,13 @@ const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
           Or click the button below to browse files
         </p>
         
-        <label htmlFor="file-upload">
-          <Button className="bg-datagpt-blue hover:bg-datagpt-blue/90">
-            <Upload className="mr-2 h-4 w-4" />
-            Select Files
-          </Button>
-        </label>
+        <Button 
+          className="bg-datagpt-blue hover:bg-datagpt-blue/90"
+          onClick={handleSelectFiles}
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          Select Files
+        </Button>
       </div>
 
       {uploadedFiles.length > 0 && (

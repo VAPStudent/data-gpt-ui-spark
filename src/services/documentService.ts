@@ -22,12 +22,13 @@ export const documentService = {
     const formData = new FormData();
     formData.append('file', file);
     
-    return await fetch(`${import.meta.env.VITE_API_URL}/workspaces/${workspaceId}/documents`, {
+    // Use the API URL from environment variables and fetchWithAuth for consistency
+    return await fetchWithAuth(`/workspaces/${workspaceId}/documents`, {
       method: 'POST',
       body: formData,
-    }).then(res => {
-      if (!res.ok) throw new Error('Upload failed');
-      return res.json();
+      headers: {
+        // Remove Content-Type header to let the browser set it with the correct boundary for FormData
+      },
     });
   },
   
