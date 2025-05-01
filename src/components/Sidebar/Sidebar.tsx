@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -12,17 +11,20 @@ import {
 import { Input } from "@/components/ui/input";
 import WorkspaceList from "../Workspace/WorkspaceList";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const { createWorkspace } = useWorkspace();
 
-  const handleCreateWorkspace = () => {
-    // This would typically call a mutation to create a new workspace
-    console.log("Creating workspace:", newWorkspaceName);
-    setIsCreatingWorkspace(false);
-    setNewWorkspaceName("");
+  const handleCreateWorkspace = async () => {
+    if (newWorkspaceName.trim()) {
+      await createWorkspace(newWorkspaceName);
+      setIsCreatingWorkspace(false);
+      setNewWorkspaceName("");
+    }
   };
 
   return (

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { workspaceService, ApiWorkspace } from "@/services/workspaceService";
+import { documentService } from "@/services/documentService";
 import { useToast } from "@/hooks/use-toast";
 
 type Workspace = {
@@ -18,6 +19,7 @@ type WorkspaceContextType = {
   activeWorkspace: Workspace | null;
   setActiveWorkspace: (id: string) => void;
   createWorkspace: (name: string) => Promise<void>;
+  refreshWorkspace: () => Promise<void>;
   isLoading: boolean;
 };
 
@@ -41,41 +43,54 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Fetch workspaces on component mount
   useEffect(() => {
-    const fetchWorkspaces = async () => {
-      try {
-        setIsLoading(true);
-        const apiWorkspaces = await workspaceService.getWorkspaces();
-        const mappedWorkspaces = apiWorkspaces.map(mapApiWorkspace);
-        setWorkspaces(mappedWorkspaces);
-        
-        // Set first workspace as active if exists and no active workspace
-        if (mappedWorkspaces.length > 0 && !activeWorkspaceId) {
-          setActiveWorkspaceId(mappedWorkspaces[0].id);
-        }
-      } catch (error) {
-        console.error("Failed to fetch workspaces:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load workspaces",
-          variant: "destructive",
-        });
-        // Fallback to sample data if API fails
-        setWorkspaces([
-          {
-            id: "1",
-            name: "Sample Workspace",
-            messages: 0,
-            files: 0,
-            createdAt: new Date(),
-          }
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchWorkspaces();
   }, []);
+
+  const fetchWorkspaces = async () => {
+    try {
+      setIsLoading(true);
+      const apiWorkspaces = await workspaceService.getWorkspaces();
+      const mappedWorkspaces = apiWorkspaces.map(mapApiWorkspace);
+      setWorkspaces(mappedWorkspaces);
+      
+      // Set first workspace as active if exists and no active workspace
+      if (mappedWorkspaces.length > 0 && !activeWorkspaceId) {
+        setActiveWorkspaceId(mappedWorkspaces[0].id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch workspaces:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load workspaces",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshWorkspace = async () => {
+    if (!activeWorkspaceId) return;
+    
+    try {
+      setIsLoading(true);
+      const apiWorkspace = await workspaceService.getWorkspace(activeWorkspaceId);
+      const updatedWorkspace = mapApiWorkspace(apiWorkspace);
+      
+      setWorkspaces(prev => prev.map(w => 
+        w.id === activeWorkspaceId ? updatedWorkspace : w
+      ));
+    } catch (error) {
+      console.error("Failed to refresh workspace:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh workspace data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const activeWorkspace = activeWorkspaceId
     ? workspaces.find((w) => w.id === activeWorkspaceId) || null
@@ -121,6 +136,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         activeWorkspace,
         setActiveWorkspace,
         createWorkspace,
+        refreshWorkspace,
         isLoading,
       }}
     >
